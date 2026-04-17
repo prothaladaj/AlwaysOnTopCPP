@@ -1,0 +1,40 @@
+/* AlwaysOnTop – Resource script
+   Icons are created by tools/gen_icons.py before building. */
+
+#include <windows.h>
+#include "resource.h"
+
+/* ── Icons ───────────────────────────────────────────────────────────────── */
+IDI_ICON_IDLE   ICON "icon_idle.ico"
+IDI_ICON_ACTIVE ICON "icon_active.ico"
+
+/* ── Manifest (visual styles + DPI) ──────────────────────────────────────── */
+1 RT_MANIFEST "app.manifest"
+
+/* ── Hotkey capture dialog ───────────────────────────────────────────────── */
+IDD_HOTKEY DIALOGEX 0, 0, 270, 88
+STYLE DS_SETFONT | DS_CENTER | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Zmień skrót klawiszowy"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT    "Naciśnij nową kombinację klawiszy\n(wymagany co najmniej jeden modyfikator: Ctrl, Alt, Shift lub Win):",
+             -1, 7, 7, 256, 18
+    LTEXT    "Nowy skrót:", -1, 7, 30, 60, 10
+    EDITTEXT IDC_HOTKEY_EDIT, 68, 28, 195, 14, ES_AUTOHSCROLL | ES_READONLY
+    DEFPUSHBUTTON "OK",     IDOK,     155, 66, 50, 14
+    PUSHBUTTON    "Anuluj", IDCANCEL, 212, 66, 50, 14
+END
+
+/* ── Pinned windows dialog ───────────────────────────────────────────────── */
+IDD_PINNED DIALOGEX 0, 0, 270, 175
+STYLE DS_SETFONT | DS_CENTER | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Przypięte okna"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT    "Aktualnie przypięte okna (zaznacz i kliknij Odepnij):",
+             -1, 7, 7, 256, 10
+    LISTBOX  IDC_PINNED_LIST, 7, 21, 256, 112,
+             LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON    "Odepnij",  IDC_UNPIN_BTN, 7,   148, 60, 14
+    DEFPUSHBUTTON "Zamknij",  IDOK,          212, 148, 50, 14
+END
