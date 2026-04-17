@@ -540,6 +540,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     switch (msg) {
 
     case WM_CREATE:
+        g_hwnd = hwnd;
         s_taskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
         Tray_Add();
         return 0;
@@ -628,13 +629,13 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int)
     RegisterClassExW(&wc);
 
     /*
-     * HWND_MESSAGE = message-only window.
-     * No taskbar button, not visible, not in Alt-Tab,
-     * but perfectly capable of hosting tray icons and receiving messages.
+     * We use a standard hidden top-level window (WS_POPUP) with the ToolWindow
+     * extended style. This avoids Alt+Tab clutter, but still allows it to receive
+     * taskbar restart broadcast messages (unlike HWND_MESSAGE).
      */
-    g_hwnd = CreateWindowExW(0, WND_CLASS, APP_NAME, 0,
+    g_hwnd = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, WND_CLASS, APP_NAME, WS_POPUP,
                               0, 0, 0, 0,
-                              HWND_MESSAGE, nullptr, hInst, nullptr);
+                              nullptr, nullptr, hInst, nullptr);
     if (!g_hwnd) return 1;
 
     /* ── Autostart ──────────────────────────────────────────────────────── */
