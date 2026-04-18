@@ -202,7 +202,7 @@ static void Tray_Update()
     bool active  = !g_pinned.empty();
     g_nid.hIcon  = active ? g_iconActive : g_iconIdle;
     wcscpy_s(g_nid.szTip,
-        active ? L"AlwaysOnTop – okna przypięte" : L"AlwaysOnTop");
+        active ? L"AlwaysOnTop – Active" : L"AlwaysOnTop");
     Shell_NotifyIconW(NIM_MODIFY, &g_nid);
 }
 
@@ -298,6 +298,9 @@ static INT_PTR CALLBACK HotkeyDlgProc(HWND hdlg, UINT msg, WPARAM wp, LPARAM)
         g_capDlg   = hdlg;
         g_capValid = false;
 
+        /* Force dialog to stay on top of other pinned windows */
+        SetWindowPos(hdlg, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+
         /* Show current hotkey as the starting value */
         WCHAR buf[128];
         FormatHotkey(buf, 128, g_modifiers, g_vk);
@@ -321,9 +324,9 @@ static INT_PTR CALLBACK HotkeyDlgProc(HWND hdlg, UINT msg, WPARAM wp, LPARAM)
         case IDOK:
             if (!g_capValid) {
                 MessageBoxW(hdlg,
-                    L"Naciśnij kombinację klawiszy zawierającą co najmniej\n"
-                    L"jeden modyfikator: Ctrl, Alt, Shift lub Win.",
-                    L"Skrót klawiszowy", MB_ICONINFORMATION);
+                    L"Press a key combination that includes at least\n"
+                    L"one modifier: Ctrl, Alt, Shift, or Win.",
+                    L"Hotkey", MB_ICONINFORMATION);
                 return TRUE;
             }
             EndDialog(hdlg, IDOK);
@@ -354,18 +357,20 @@ static INT_PTR CALLBACK PinnedDlgProc(HWND hdlg, UINT msg, WPARAM wp, LPARAM)
     switch (msg) {
 
     case WM_INITDIALOG: {
+        /* Force list dialog to stay on top of everything */
+        SetWindowPos(hdlg, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
         Pinned_Clean();
         HWND lb = GetDlgItem(hdlg, IDC_PINNED_LIST);
 
         if (g_pinned.empty()) {
-            SendMessageW(lb, LB_ADDSTRING, 0, (LPARAM)L"(brak przypiętych okien)");
+            SendMessageW(lb, LB_ADDSTRING, 0, (LPARAM)L"(no pinned windows)");
             EnableWindow(lb,                              FALSE);
             EnableWindow(GetDlgItem(hdlg, IDC_UNPIN_BTN), FALSE);
         } else {
             for (HWND h : g_pinned) {
                 WCHAR title[256] = {};
                 GetWindowTextW(h, title, 256);
-                if (!title[0]) wcscpy_s(title, L"(bez tytułu)");
+                if (!title[0]) wcscpy_s(title, L"(untitled)");
 
                 int idx = (int)SendMessageW(lb, LB_ADDSTRING, 0, (LPARAM)title);
                 SendMessageW(lb, LB_SETITEMDATA, idx, (LPARAM)h);
@@ -389,7 +394,7 @@ static INT_PTR CALLBACK PinnedDlgProc(HWND hdlg, UINT msg, WPARAM wp, LPARAM)
 
             /* If the list is now empty, show placeholder and disable controls */
             if (SendMessageW(lb, LB_GETCOUNT, 0, 0) == 0) {
-                SendMessageW(lb, LB_ADDSTRING, 0, (LPARAM)L"(brak przypiętych okien)");
+                SendMessageW(lb, LB_ADDSTRING, 0, (LPARAM)L"(no pinned windows)");
                 EnableWindow(lb,                                FALSE);
                 EnableWindow(GetDlgItem(hdlg, IDC_UNPIN_BTN), FALSE);
             }
@@ -419,12 +424,12 @@ static void ShowContextMenu()
     /* ── Pinned windows (direct entries, click = unpin) ── */
     if (g_pinned.empty()) {
         AppendMenuW(hMenu, MF_STRING | MF_GRAYED, 0,
-            L"(brak przypiętych okien)");
+            L"(no pinned windows)");
     } else {
         for (size_t i = 0; i < g_pinned.size() && i < 99; i++) {
             WCHAR title[256] = {};
             GetWindowTextW(g_pinned[i], title, 256);
-            if (!title[0]) wcscpy_s(title, L"(bez tytu\u0142u)");
+            if (!title[0]) wcscpy_s(title, L"(untitled)");
 
             /* Prepend check-mark to signal "currently pinned" */
             WCHAR item[270];
@@ -434,12 +439,12 @@ static void ShowContextMenu()
     }
 
     AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(hMenu, MF_STRING,    IDM_PINNED_DLG, L"Zarz\u0105dzaj przypietymi...");
+    AppendMenuW(hMenu, MF_STRING,    IDM_PINNED_DLG, L"Manage Pinned Windows...");
 
     /* ── Settings ── */
     AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
 
-    WCHAR hkLabel[200] = L"Zmie\u0144 skr\u00f3t (";
+    WCHAR hkLabel[200] = L"Change Hotkey (";
     WCHAR hkBuf[64];
     FormatHotkey(hkBuf, 64, g_modifiers, g_vk);
     StringCchCatW(hkLabel, 200, hkBuf);
@@ -449,14 +454,14 @@ static void ShowContextMenu()
     UINT unpinAllFlags = g_pinned.empty()
         ? (MF_STRING | MF_GRAYED)
         : MF_STRING;
-    AppendMenuW(hMenu, unpinAllFlags, IDM_UNPIN_ALL, L"Odepnij wszystkie");
+    AppendMenuW(hMenu, unpinAllFlags, IDM_UNPIN_ALL, L"Unpin All");
 
     bool curAuto = Reg_GetAutostart();
     AppendMenuW(hMenu, MF_STRING | (curAuto ? MF_CHECKED : 0),
-        IDM_AUTOSTART, L"Uruchamiaj z Windows");
+        IDM_AUTOSTART, L"Start with Windows");
 
     AppendMenuW(hMenu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(hMenu, MF_STRING, IDM_EXIT, L"Zamknij");
+    AppendMenuW(hMenu, MF_STRING, IDM_EXIT, L"Exit");
 
     /* Display menu at cursor */
     POINT pt;
@@ -502,8 +507,8 @@ static void ShowContextMenu()
             WCHAR hk[64], err[256];
             FormatHotkey(hk, 64, g_modifiers, g_vk);
             StringCchPrintfW(err, 256,
-                L"Nie mo\u017cna zarejestrowa\u0107 skr\u00f3tu %s.\n"
-                L"Mo\u017ce by\u0107 zaj\u0119ty przez inn\u0105 aplikacj\u0119.", hk);
+                L"Cannot register hotkey %s.\n"
+                L"It might be in use by another application.", hk);
             MessageBoxW(g_hwnd, err, APP_NAME, MB_ICONWARNING);
         }
         break;
@@ -646,10 +651,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int)
         WCHAR hk[64], err[300];
         FormatHotkey(hk, 64, g_modifiers, g_vk);
         StringCchPrintfW(err, 300,
-            L"Nie mo\u017cna zarejestrowa\u0107 skr\u00f3tu %s.\n"
-            L"Mo\u017ce by\u0107 zaj\u0119ty przez inn\u0105 aplikacj\u0119.\n\n"
-            L"Kliknij prawy przyciskiem mysz\u0131 ikon\u0119 w tray,\n"
-            L"aby ustawi\u0107 inny skr\u00f3t.", hk);
+            L"Cannot register hotkey %s.\n"
+            L"It might be in use by another application.\n\n"
+            L"Right-click the tray icon to set a different hotkey.", hk);
         MessageBoxW(nullptr, err, APP_NAME, MB_ICONWARNING);
     }
 
